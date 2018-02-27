@@ -1,0 +1,229 @@
+* {
+  box-sizing: border-box;
+}
+img {
+  display: block;
+  border: 0px;
+}
+body {
+  margin: 0px;
+  padding: 0px;
+  overflow: hidden;
+}
+ul,
+li {
+  padding: 0px;
+  margin: 0px;
+  list-style: none;
+}
+.hello {
+  background-image: url('/static/image/bgImg.png');
+  background-size: 100% 100%;
+  width: 100%;
+  padding: 10px;
+}
+.hello img {
+  width: 100%;
+}
+.hello .tishi {
+  width: 80%;
+  margin-left: auto;
+  margin-right: auto;
+}
+.hello .tishis {
+  width: 90%;
+  margin-left: auto;
+  margin-right: auto;
+}
+.hello .ptBox {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  background-color: #ffffff;
+  margin-bottom: 10px;
+  border: 10px solid #6a3906;
+  position: relative;
+}
+.hello .ptBox .ptCkt {
+  width: 100%;
+  position: absolute;
+  left: 0px;
+  top: 0px;
+}
+.hello .ptBox li {
+  background-size: 100% 100%;
+  width: 33.33333%;
+  text-align: center;
+  height: auto;
+  padding: 0px;
+  margin: 0px;
+}
+.hello .ptBox li img {
+  height: auto;
+  width: 100%;
+  border: none;
+  padding: 0px;
+  margin: 0px;
+}
+.hyzBtn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 70px !important;
+  height: 70px !important;
+  display: block;
+}
+.hyzBtn img {
+  width: 100%;
+  height: 100%;
+}
+.headerTitle {
+  width: 70px;
+  height: 70px;
+  margin-bottom: 10px;
+  position: relative;
+}
+.headerTitle .ckt {
+  width: 100%;
+  border: 3px solid #6a3906;
+}
+.headerTitle .bushuBg {
+  position: fixed;
+  left: 100px;
+  top: 15px;
+}
+.headerTitle .bushuBg img {
+  width: 80px;
+}
+.headerTitle .bushuBg span {
+  font-size: 38px;
+  position: absolute;
+  left: 90px;
+  top: 9px;
+  padding: 0px;
+  margin: 0px;
+  font-weight: bold;
+  color: #41210f;
+}
+.homeBtn {
+  position: fixed;
+  bottom: 0px;
+  left: 0px;
+  padding: 10px;
+  width: 100%;
+  display: block;
+}
+.homeBtn img {
+  width: 80%;
+  margin-left: auto;
+  margin-right: auto;
+}
+.indexBtns {
+  position: fixed;
+  left: 0px;
+  bottom: 0px;
+  display: flex;
+  flex-wrap: wrap;
+}
+.indexBtns a {
+  padding: 5px;
+  width: 50%;
+}
+.shareBox {
+  width: 100%;
+  position: fixed;
+  top: 0px;
+  left: 0px;
+  background-image: url('/static/image/fxbg.png');
+  z-index: 999;
+  padding: 10px;
+}
+.shareBox .fximg {
+  width: 50%;
+  float: right;
+}
+.shareBox .closeBtn {
+  width: 100%;
+  position: fixed;
+  bottom: 0px;
+  left: 0px;
+  text-align: center;
+  padding-bottom: 20px;
+}
+.shareBox .closeBtn img {
+  width: 50%;
+  margin-left: auto;
+  margin-right: auto;
+}
+.indexBox {
+  width: 100%;
+  background-image: url('/static/image/bgImg.png');
+  background-size: 100% 100%;
+  position: fixed;
+  left: 0px;
+  top: 0px;
+  padding: 10px;
+  text-align: center;
+}
+.indexBox .indexTitles {
+  width: 85%;
+  margin-left: auto;
+  margin-right: auto;
+  margin-top: 10px;
+}
+.indexBox .indexBanners {
+  margin-top: 20px;
+  width: 85%;
+  margin-left: auto;
+  margin-right: auto;
+}
+.indexBox .indexBottom {
+  width: 100%;
+  position: fixed;
+  bottom: 10px;
+  left: 0px;
+  padding: 10px;
+}
+.indexBox .indexBottom img {
+  width: 80%;
+  margin-left: auto;
+  margin-right: auto;
+}
+.jtBox {
+  background-image: url('/static/image/bgImg.png');
+  background-size: 100% 100%;
+  width: 100%;
+  padding: 10px;
+  position: fixed;
+  top: 0px;
+  left: 0px;
+}
+.eqm {
+  margin-top: 5px;
+  width: 100%;
+  text-align: center;
+}
+.eqm img {
+  width: 90px;
+  height: 90px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.cabc {
+  display: block;
+  width: 100%;
+  text-align: center;
+  padding-left: 10px;
+  position: fixed;
+  left: 0px;
+  font-size: 12px;
+  bottom: 5px;
+  z-index: 999;
+}
+.endImg {
+  width: 100%;
+  z-index: 998;
+  position: fixed;
+  top: 0px;
+  left: 0px;
+}

@@ -1,0 +1,711 @@
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>华容道</title>
+    <link rel="icon" href="曹操.png" type="image/x-icon"/>
+    <link rel="shortcut icon" href="曹操.png" type="image/x-icon"/>
+    <!--注意，user-scalable=no而不能是user-scalable=0-->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+    <style>
+        body {
+            margin: 0; /*去掉两边的空白*/
+            overflow: hidden; /*不显示滚动条*/
+            background-color: black;
+        }
+
+        #container {
+            margin: 0 auto; /*auto的作用是居中显示*/
+            position: relative; /*relative的作用是使得子节点相对布局是相对于container*/
+            background-color: white;
+        }
+
+        /*小方快*/
+        .block {
+            position: absolute;
+            box-sizing: border-box;
+            border: 2px solid white;
+        }
+
+        /*棋盘*/
+        #board {
+            margin: 0 auto;
+            position: relative;
+            height: 90%;
+            width: 100%;
+        }
+
+        /*控制台*/
+        #console {
+            color: white;
+            margin: 0 auto;
+            position: relative;
+            width: 100%;
+            height: 10%;
+            text-align: center;
+            background-color: black;
+            overflow: hidden;
+        }
+
+        /*控制台上的按钮*/
+        #console button {
+            width: 20%;
+            height: 100%;
+            padding: 0;
+            margin: 0;
+            float: left;
+            overflow: hidden;
+        }
+
+        /*面板*/
+        .panel {
+            width: 100%;
+            height: 100%;
+            z-index: 100;
+            background-color: rgba(0, 0, 0, 0.8);
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        /*面板体*/
+        .panel-body {
+            top: 50%;
+            transform: translateY(-50%); /*使我的y向上移动50%*/
+            position: absolute;
+            width: 100%;
+            color: white;
+            text-align: center;
+        }
+
+    </style>
+</head>
+<body>
+<div id="container">
+    <!--控制台，放置按钮-->
+    <div id="console">
+        <button id="autoPlayButton" onclick="clickAutoPlay()">自动演示</button>
+        <button onclick="clickRemindButton()">提示一步</button>
+        <button onclick=" $('#settingPanel').hidden = false">设置</button>
+        <button onclick="clickRestartButton()">重新开始</button>
+        <button onclick="clickRandomGameButton()">新游戏</button>
+    </div>
+    <!--灰色背景面板，提示您赢了-->
+    <div class="panel" id="infoPanel" hidden
+         onclick="$('#infoPanel').hidden = true">
+        <div class="panel-body">您赢了</div>
+    </div>
+    <!--第一次玩游戏时需要介绍一下游戏，此面板在第一次玩时出现-->
+    <div class="panel" id="helpPanel" hidden
+         onclick="$('#helpPanel').hidden=true">
+        <div class="panel-body">
+            <div>诸葛亮智算华容<br>关云长义释曹操</div>
+            <br>
+            <div>把曹操（红色的大方块）移动到最下方正中央，你就赢了！</div>
+        </div>
+    </div>
+    <!--设置面板，设置音效，自动帮助时间间隔等-->
+    <div id="settingPanel" class="panel" hidden>
+        <div class="panel-body">
+            <div>音效&nbsp;
+                <input type="checkbox" id="needSound"
+                       checked
+                       onchange="clickSoundButton()">
+            </div>
+            <div>
+                <span id="autoPlayIntervalLabel">
+                    演示时间间隔(1s)
+                </span>
+                <input type="range" min="0.1"
+                       max="5" step="0.1" value="1"
+                       onchange="autoPlayIntervalChange()"
+                       id="autoPlayInterval">
+            </div>
+            <button onclick="$('#settingPanel').hidden=true">确定</button>
+        </div>
+    </div>
+    <!--棋盘，放置棋子-->
+    <div id="board">
+    </div>
+</div>
+<!--音效，设置它为隐藏-->
+<audio id="move" src="move.mp3" hidden></audio>
+</body>
+<script>
+    /**
+     * 一切坐标都用百分比，这样就能够保证随时适应屏幕大小
+     * */
+    var R = 5, C = 4//华容道棋盘是五行四列
+    var book = {}//存放状态和着法
+    var recs =//棋子信息，0,1,2,3,4分别表示空白，曹操，横将，竖将，卒子
+        [
+            {'color': 'white', 'shape': [1, 1], 'body': [[0, 0]]},
+            {'color': 'red', 'shape': [2, 2], 'body': [[0, 0], [0, 1], [1, 0], [1, 1]]},
+            {'color': 'green', 'shape': [1, 2], 'body': [[0, 0], [0, 1]]},
+            {'color': 'black', 'shape': [2, 1], 'body': [[0, 0,], [1, 0]]},
+            {'color': 'grey', 'shape': [1, 1], 'body': [[0, 0]]},
+        ]
+
+    var board = getEmptyArray(R, C)//游戏局面
+    var allStates = []//全部有解的棋盘状态
+    var directions = [[0, -1], [-1, 0], [0, 1], [1, 0]]//四个方向
+    var autoPlayTimeout = null//自动帮助定时器
+    var originalState = null//游戏最开始的状态，用于重玩游戏
+    var movingChess = null//正在移动的棋子
+    var animateDuration = 200//动画最长持续时间，单位毫秒
+
+
+    //音效按钮
+    function clickSoundButton() {
+        localStorage.needSound = $("#needSound").checked
+    }
+
+    //自动播放时间滑块按钮
+    function autoPlayIntervalChange() {
+        //将设置保存到本地
+        localStorage.autoPlayInterval = $("#autoPlayInterval").value
+        $("#autoPlayIntervalLabel").innerHTML = "自动播放时间(" + $("#autoPlayInterval").value + ")s"
+    }
+
+    //自动帮助按钮
+    function clickAutoPlay() {
+        if (over()) {
+            showInfo()
+        } else {
+            if (!autoPlayTimeout) {
+                $("#autoPlayButton").innerHTML = "停止演示"
+                autoPlay()
+            } else {
+                clearTimeout(autoPlayTimeout)
+                autoPlayTimeout = null
+                $("#autoPlayButton").innerHTML = "自动演示"
+            }
+        }
+    }
+
+    //点击重新开始按钮
+    function clickRestartButton() {
+        clearOld()
+        loadState(decode(originalState))
+    }
+
+    //点击新游戏按钮，随机选择一个局面
+    function clickRandomGameButton() {
+        var x = Math.floor(Math.random() * allStates.length)
+        var state = allStates[x]
+        clearOld()
+        originalState = state
+        loadState(decode(state))
+    }
+
+    //只提示一步
+    function clickRemindButton() {
+        //如果正在演示，直接返回，不用提示
+        if (autoPlayTimeout) return
+        if (over()) {
+            showInfo()
+        } else {
+            var op = ai(board)
+            operate(op)
+            if (over()) {
+                showInfo()
+            }
+        }
+    }
+
+    //产生r行c列的空数组
+    function getEmptyArray(r, c) {
+        var a = new Array(r)
+        for (var i = 0; i < r; i++) {
+            a[i] = new Array(c)
+            for (var j = 0; j < c; j++) {
+                a[i][j] = 0
+            }
+        }
+        return a
+    }
+
+    //ajax加载游戏表格数据
+    function loadIntArray(url, callback) {
+        var req = new XMLHttpRequest()
+        req.open("GET", url)
+        req.send()
+        req.responseType = "arraybuffer"
+        req.onreadystatechange = function () {
+            if (req.readyState == 4 && req.status == 200) {
+                callback(new Int32Array(req.response))
+            }
+        }
+    }
+
+    function $(sel) {
+        return document.querySelector(sel)
+    }
+
+    //自动播放
+    function autoPlay() {
+        if (!over()) {
+            var op = ai(board)
+            operate(op)
+            if (over()) {
+                showInfo()
+                $("#autoPlayButton").innerHTML = "自动演示"
+                clearTimeout(autoPlayTimeout)
+                autoPlayTimeout = null
+            } else {
+                autoPlayTimeout = setTimeout(autoPlay, $("#autoPlayInterval").value * 1000)
+            }
+        } else {
+            if (autoPlayTimeout) {
+                clearTimeout(autoPlayTimeout)
+                autoPlayTimeout = null
+            }
+            $("#autoPlayButton").innerHTML = "自动演示"
+        }
+    }
+
+    /** 显示文字信息*/
+    function showInfo() {
+        $("#infoPanel").hidden = false
+    }
+
+    //根据窗口大小设置各个元素的大小
+    function onResize() {
+        var width = document.body.clientWidth
+        var height = document.body.clientHeight
+        //JS无法直接获取CSS属性中的高度比，只能通过计算的方式求出来
+        var boardHeightRatio = parseFloat(window.getComputedStyle($("#board")).height) / parseFloat(window.getComputedStyle($("#container")).height)
+        var gridSize = Math.floor(Math.min(width / C, height * boardHeightRatio / R))
+        $("#container").style.width = gridSize * C
+        $("#container").style.height = gridSize * R / boardHeightRatio
+    }
+
+    //设置visit数组
+    function visit(vis, shape, x, y) {
+        for (var i = 0; i < shape.length; i++) {
+            vis[x + shape[i][0]][y + shape[i][1]] = true
+        }
+    }
+
+    //设置element的百分比矩形框
+    function setPercentageRect(block, left, top, width, height) {
+        block.style.left = left + "%"
+        block.style.top = top + "%"
+        if (width) block.style.width = width + "%"
+        if (height) block.style.height = height + "%"
+    }
+
+    //创建新方块
+    function newBlock(chess, x, y) {
+        var block = document.createElement("div")
+        setPercentageRect(block,
+            y / C * 100,
+            x / R * 100,
+            chess.shape[1] / C * 100,
+            chess.shape[0] / R * 100)
+        block.style.backgroundColor = chess.color
+        block.className = 'block'
+        block.id = "block" + x + y
+        return block
+    }
+
+    /**根据事件获取坐标，兼容鼠标和触摸两种事件*/
+    function getMousePosition(event) {
+        if (event.type.startsWith("mouse")) {
+            return {x: event.x, y: event.y}
+        } else if (event.type.startsWith("touch")) {
+            return {
+                x: event.changedTouches[0].clientX,
+                y: event.changedTouches[0].clientY
+            }
+        } else {
+            console.log("baga==========")
+        }
+    }
+
+    /**
+     * board里面一共有10个div，这些div移动之后zIndex就要发生变化
+     * 要保证后来移动的元素zIndex比较大，但是又要保证所有元素zIndex
+     * 所在区间固定，比如有10个div，全部元素的zIndex区间为0到10
+     * */
+    function updateZindex(chess) {
+        var a = []
+        for (var i = 0; i < $("#board").children.length; i++) {
+            a.push($("#board").children[i])
+        }
+        a.sort(function (m, n) {
+            return parseInt(m.style.zIndex) - parseInt(n.style.zIndex)
+        })
+        var vis = false;
+        for (var i = 0; i < a.length; i++) {
+            if (a[i] === chess) {
+                a[i].style.zIndex = a.length
+                vis = true
+            } else if (vis) {
+                a[i].style.zIndex = i - 1
+            } else if (!vis) {
+                a[i].style.zIndex = i
+            }
+        }
+    }
+
+    /** 鼠标按下*/
+    function onBlockMouseDown(event) {
+        //如果正在演示，禁止用户操作
+        if (autoPlayTimeout) return
+        event.preventDefault()
+        var todos = getTodo(board)
+        var x, y
+        if (event.target.id.startsWith("block")) {
+            x = parseInt(event.target.id[5])
+            y = parseInt(event.target.id[6])
+        } else {
+            return
+        }
+        var canGo = []
+        for (var i = 0; i < todos.length; i++) {
+            for (var j = 0; j < todos[i].length; j++) {
+                if (todos[i][j][0] == x && todos[i][j][1] == y) {
+                    canGo.push(todos[i][j][2])
+                }
+            }
+        }
+        if (canGo.length) {
+            movingChess = {
+                id: "#block" + x + y,
+                x: x,
+                y: y,
+                canGo: canGo,
+                mouseX: getMousePosition(event).x,
+                mouseY: getMousePosition(event).y,
+                mouseStartX: getMousePosition(event).x,
+                mouseStartY: getMousePosition(event).y
+            }
+            updateZindex($(movingChess.id))
+        }
+    }
+
+    /**清空正在移动的棋子的信息*/
+    function resetMovingChess() {
+        if (movingChess) {
+            var chess = movingChess
+            movingChess = null
+            animate($(chess.id),
+                chess.y / C * 100,
+                chess.x / R * 100, 0)
+        }
+    }
+
+    /**鼠标移动事件*/
+    function onBlockMouseMove(event) {
+        event.preventDefault()
+        if (!movingChess) return
+        var mousePos = getMousePosition(event)
+        var boardRect = $("#board").getBoundingClientRect()
+        var distanceFromBoard = boardRect.width / C
+        if (mousePos.x < boardRect.left - distanceFromBoard
+            || mousePos.y < board.top - distanceFromBoard
+            || mousePos.x >= boardRect.left + boardRect.width + distanceFromBoard
+            || mousePos.y >= boardRect.top + boardRect.height + distanceFromBoard) {
+            resetMovingChess()
+            return
+        }
+        var dx = mousePos.x - movingChess.mouseX
+        var dy = mousePos.y - movingChess.mouseY
+        var x = $(movingChess.id).getBoundingClientRect().left - boardRect.left + dx
+        var y = $(movingChess.id).getBoundingClientRect().top - boardRect.top + dy
+        setPercentageRect($(movingChess.id),
+            x / boardRect.width * 100,
+            y / boardRect.height * 100
+        )
+        movingChess.mouseX = mousePos.x
+        movingChess.mouseY = mousePos.y
+    }
+
+    /**
+     * 计算两个向量之间的夹角(0~pi)
+     * 如果大于180度，会取360-该角度，这个工作是由acos完成的
+     * */
+    function getAngle(x1, y1, x2, y2) {
+        var cos = (x1 * x2 + y1 * y2) / Math.hypot(x1, y1) / Math.hypot(x2, y2)
+        return Math.acos(cos)
+    }
+
+    /**
+     * 计算向量之间的余弦距离确定最佳方向，这里假定与四个方向夹角小于30度
+     * 必然只有一个答案，找到后立即返回即可
+     * */
+    function getDirection(dx, dy) {
+        for (var i = 0; i < directions.length; i++) {
+            var angle = getAngle(directions[i][0], directions[i][1], dx, dy)
+            if (Math.abs(angle) < Math.PI / 6) {
+                return i
+            }
+        }
+        return -1
+    }
+
+    /**鼠标抬起*/
+    function onBlockMouseUp(event) {
+        event.preventDefault()
+        if (movingChess == null) return
+        var ind = getDirection(movingChess.mouseY - movingChess.mouseStartY, movingChess.mouseX - movingChess.mouseStartX)
+        if (movingChess.canGo.indexOf(ind) != -1) {
+            var chess = movingChess
+            movingChess = null
+            move(chess.x, chess.y, directions[ind])
+            if (over()) {
+                showInfo()
+            }
+        } else {
+            resetMovingChess()
+        }
+    }
+
+    //更改一些全局变量，为新游戏开始做准备
+    function clearOld() {
+        if (autoPlayTimeout) {
+            clearTimeout(autoPlayTimeout)
+            autoPlayTimeout = null
+        }
+        $("#autoPlayButton").innerHTML = "自动演示"
+        movingChess = null
+        $("#board").innerHTML = ""//清空已经生成的棋子
+    }
+
+    //加载游戏状态
+    function loadState(localBoard) {
+        board = localBoard
+        var vis = getEmptyArray(R, C)
+        for (var i = 0; i < R; i++) {
+            for (var j = 0; j < C; j++) {
+                if (!vis[i][j] && board[i][j] != 0) {
+                    visit(vis, recs[board[i][j]].body, i, j)
+                    $("#board").appendChild(newBlock(recs[board[i][j]], i, j))
+                }
+            }
+        }
+    }
+
+    function legal(x, y) {
+        return x >= 0 && y >= 0 && x < R && y < C
+    }
+
+    function canMove(board, x, y, d) {
+        var body = new Set()
+        var val = board[x][y]
+        for (var i = 0; i < recs[val].body.length; i++) {
+            body.add((x + recs[val].body[i][0]) * C + y + recs[val].body[i][1])
+        }
+        for (var i = 0; i < recs[val].body.length; i++) {
+            var m = x + recs[val].body[i][0] + d[0], n = y + recs[val].body[i][1] + d[1]
+            if (!legal(m, n)) {
+                return false;
+            }
+            if (board[m][n] != 0 && !body.has(m * C + n)) return false;
+        }
+        return true;
+    }
+
+    /**简单的动画
+     * step表示到目的地的比例
+     * 这种实现方式的特点是越来越慢，一开始移动距离比较多，后面移动距离变少
+     */
+    function animate(element, left, top, step) {
+        setPercentageRect(element,
+            left * step + parseFloat(element.style.left) * (1 - step),
+            top * step + parseFloat(element.style.top) * (1 - step))
+        if (step < 1) {
+            //动画帧与帧之间的最少时间间隔，单位毫秒，此值为常量
+            var animateInterval = 50
+            setTimeout(function () {
+                animate(element, left, top, Math.min(step + animateInterval / Math.min(animateDuration, $("#autoPlayInterval").value * 1000), 1))
+            }, animateInterval)
+        }
+    }
+
+    function move(x, y, d) {
+        if (!legal(x, y))
+            return
+        var val = board[x][y]
+        for (var i = 0; i < recs[val].body.length; i++) {
+            var xx = x + recs[val].body[i][0], yy = y + recs[val].body[i][1]
+            board[xx][yy] = 0
+        }
+        for (var i = 0; i < recs[val].body.length; i++) {
+            var xx = x + recs[val].body[i][0] + d[0], yy = y + recs[val].body[i][1] + d[1]
+            board[xx][yy] = val
+        }
+        var blockId = "#block" + x + y
+        animate($(blockId), (y + d[1]) / C * 100, (x + d[0]) / R * 100, 0)
+        $(blockId).id = "block" + (x + d[0]) + (y + d[1])
+        if ($("#needSound").checked) {
+            $("#move").play()
+        }
+    }
+
+    //将当前局面进行编码
+    function encode(board) {
+        var s = []
+        var vis = getEmptyArray(R, C)
+        for (var i = 0; i < R; i++) {
+            for (var j = 0; j < C; j++) {
+                if (!vis[i][j]) {
+                    s.push(board[i][j])
+                    visit(vis, recs[board[i][j]].body, i, j)
+                }
+            }
+        }
+        var ans = 0
+        for (var i = 0; i < s.length; i++) {
+            ans += s[i] * Math.pow(5, i)
+        }
+        return ans
+    }
+
+    //左右反转棋盘
+    function mirror(board) {
+        var another = getEmptyArray(R, C)
+        for (var i = 0; i < R; i++) {
+            for (var j = 0; j < C; j++) {
+                another[i][j] = board[i][3 - j]
+            }
+        }
+        return another
+    }
+
+    //将棋盘的int表示解析成数组表示
+    function decode(s) {
+        let board = getEmptyArray(R, C)
+        let a = new Array()
+        for (let i = 0; i < 12; i++) {
+            a.push(Math.floor(s / Math.pow(5, i)) % 5)
+        }
+        let vis = getEmptyArray(R, C)
+        let ind = 0
+        for (let i = 0; i < R; i++) {
+            for (let j = 0; j < C; j++) {
+                if (!vis[i][j]) {
+                    let val = a[ind++]
+                    visit(vis, recs[val].body, i, j)
+                    for (let d = 0; d < recs[val].body.length; d++) {
+                        let dir = recs[val].body[d]
+                        board[i + dir[0]][j + dir[1]] = val
+                    }
+                }
+            }
+        }
+        return board
+    }
+
+    //判断游戏结束
+    function over() {
+        return board[3][1] == 1 && board[3][2] == 1
+            && board[4][1] == 1 && board[4][2] == 1
+    }
+
+    //请求AI帮助
+    function ai(board) {
+        var s = encode(board)
+        var op = null
+        if (book.hasOwnProperty(s)) {
+            op = book[s]
+            return op
+        } else {
+            s = encode(mirror(board))
+            op = book[s]
+            d = [2, 1, 0, 3][op % 4]  // 移动的方向，需要镜像回来
+            todos = getTodo(mirror(board))
+            pos = todos[op % 4][Math.floor(op / 4)]  // 移动的位置
+            var x = pos[0], y = pos[1]
+            y = C - 1 - y
+            // 现在y是右上角，需要转换为左上角
+            y -= recs[board[x][y]].shape[1] - 1
+            todos = getTodo(board)
+            if (todos[d][0][0] == x && todos[d][0][1] == y) {
+                op = d
+            } else {
+                op = 4 + d
+            }
+            return op
+        }
+    }
+
+    //获取全部可以执行的操作
+    function getTodo(board) {
+        var todos = new Array(4)
+        for (var i = 0; i < 4; i++) todos[i] = new Array()
+        var vis = getEmptyArray(R, C)
+        for (var i = 0; i < R; i++) {
+            for (var j = 0; j < C; j++) {
+                if (!vis[i][j] && board[i][j] != 0) {
+                    visit(vis, recs[board[i][j]].body, i, j)
+                    for (var k = 0; k < directions.length; k++) {
+                        if (canMove(board, i, j, directions[k])) {
+                            todos[k].push([i, j, k])
+                        }
+                    }
+                }
+            }
+        }
+        return todos
+    }
+
+    //执行op操作：左上右下，1234，第二组左上右下：5，6，7，8
+    function operate(op) {
+        var todos = getTodo(board)
+        var dir = op % 4
+        var which = Math.floor(op / 4)
+        if (which >= todos[dir].length) return
+        var op = todos[dir][which]
+        var x = op[0], y = op[1]
+        move(x, y, directions[op[2]])
+    }
+
+    /*从本地存储中加载配置信息*/
+    function loadSettings() {
+        if (localStorage.needSound === "false") {
+            $("#needSound").checked = false
+        }
+        if (localStorage.autoPlayInterval) {
+            $("#autoPlayInterval").value = parseFloat(localStorage.autoPlayInterval)
+            $("#autoPlayIntervalLabel").innerHTML = "自动播放时间(" + $("#autoPlayInterval").value + ")s"
+        }
+    }
+
+    function bindEventListenerAccordingPlatform() {
+        if (/Android|webOS|iPhone|iPod|BlackBerry/i.test(navigator.userAgent)) {
+            $("#board").addEventListener("touchstart", onBlockMouseDown)
+            $("#board").addEventListener("touchend", onBlockMouseUp)
+            $("#board").addEventListener("touchmove", onBlockMouseMove)
+        } else {
+            $("#board").onmousedown = onBlockMouseDown
+            $("#board").onmouseup = onBlockMouseUp
+            $("#board").onmousemove = onBlockMouseMove
+        }
+    }
+
+    function initChessBook(data) {
+        for (var i = 0; i < data.length; i++) {
+            var k = Math.floor(data[i] / 8), v = data[i] % 8
+            book[k] = v
+            allStates.push(k)
+        }
+    }
+
+    /**函数调用部分*/
+    loadSettings()
+    onResize()
+    bindEventListenerAccordingPlatform()
+    loadIntArray("huarongdao.bin", function (data) {
+        initChessBook(data)
+        originalState = allStates[0]
+        loadState(decode(allStates[0]))
+        board = decode(allStates[0])
+    })
+    window.onresize = onResize
+    if (!localStorage.huarongdao || localStorage.huarongdao === "false") {
+        localStorage.huarongdao = true
+        $("#helpPanel").hidden = false
+    }
+</script>
+</html>
