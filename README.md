@@ -1,6 +1,6 @@
 [项目地址:https://github.com/weiyinfu/huarongdao](https://github.com/weiyinfu/huarongdao)
 
-[点我试玩一下](https://weiyinfu.github.io/huarongdao/%E5%8D%8E%E5%AE%B9%E9%81%93html%E7%95%8C%E9%9D%A2.html)
+[点我试玩一下](https://weiyinfu.github.io/huarongdao/huarongdao.html)
 
 ## 华容道背景
 赤壁大战后，曹操败走华容道。关羽感念曹操昔日重用之恩，有意放曹操一条生路，
